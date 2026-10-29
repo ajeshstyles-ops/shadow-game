@@ -1,4 +1,5 @@
-// LEVELS_DATA - FINAL FIXED - Level 2 island enlarged, no more blank
+
+ // LEVELS_DATA - Level 2 single box adjustment
 const LEVELS_DATA = {
   1: {
     name: "Level 1 - The Forest",
@@ -20,7 +21,7 @@ const LEVELS_DATA = {
     gaps: [[4400,4700],[5550,5660],[6300,6410]],
     spikes: [[5750,5790],[6550,6590]],
     walls: [{x:5100,y:-50,w:40,h:50}],
-    crates: [{x:5320}],
+    crates: [{x:5480}],
     lake: {x:4400, x2:4700},
     log: {x:4450, w:160, speed:0.7},
     checkpoints: [4150,5000,6450],
