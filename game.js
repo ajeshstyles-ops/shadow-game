@@ -1,4 +1,4 @@
-// GAME.JS - Engine - Lake + Floating Log & Crate + Rain (Level 3)
+// GAME.JS - Engine - Pushable Log in Water
 (function(){
 'use strict';
 var cv=document.getElementById('c'),ctx=cv.getContext('2d');
@@ -10,8 +10,8 @@ function rnd(i,s){var v=Math.sin(i*127.1+s*311.7)*43758.5453;return v-Math.floor
 function ov(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
 
 var currentLevel=1,LD=null,END=7800,segs=[],gaps=[],spikes=[],walls=[],solids=[],spikeRects=[],checkpoints=[],LAKE_X=99999,LAKE_X2=99999,BOULDER_AT=99999,PIT_X=99999,PIT_X2=99999,EXIT_X2=7350;
-var crate,crate2,boulder,log,parts=[];
-var crateInWater=false, crate2InWater=false; // Track if crates are floating
+var crate,crate2,boulder,log,parts=[],pushLogObj=null;
+var logInWater = false; // Tracks if the pushable log is in water
 
 function buildLevel(n){
   if(!LEVELS_DATA[n]) { n = 1; }
@@ -28,9 +28,13 @@ function buildLevel(n){
 function resetObjects(){
   crate=(LD.crates&&LD.crates[0])?{x:LD.crates[0].x,y:G-36,w:36,h:36,vy:0}:{x:0,y:0,w:0,h:0,vy:0};
   crate2=(LD.crates&&LD.crates[1])?{x:LD.crates[1].x,y:G-36,w:36,h:36,vy:0}:{x:0,y:0,w:0,h:0,vy:0};
-  log= LD.log?{x:LD.log.x,y:G-12,w:LD.log.w,h:14,vx:LD.log.speed,dir:1}:{x:0,y:0,w:0,h:0,vx:0,dir:1};
+  // Level 2 Log (Moving by itself)
+  log= (LD.log && LD.log.x) ? {x:LD.log.x,y:G-12,w:LD.log.w,h:14,vx:LD.log.speed,dir:1} : {x:0,y:0,w:0,h:0,vx:0,dir:1};
+  // Level 3 Pushable Log (Starts on land)
+  pushLogObj = LD.pushLog ? {x:LD.pushLog.x, y:G-LD.pushLog.h, w:LD.pushLog.w, h:LD.pushLog.h, vx:0, dir:1} : null;
+  logInWater = false;
+  
   if(!boulder || !boulder.fallen) boulder={active:false,x:0,y:G-44,r:44,rot:0,vy:0,fallen:false};
-  crateInWater=false; crate2InWater=false; // Reset water state
   parts=[];
 }
 
@@ -49,28 +53,11 @@ function respawn(){
   P.x=cur.x;P.y=G;P.vx=0;P.vy=0;P.onGround=true;P.pushing=false;P.buf=0;P.coyote=0;
   camX=P.x-viewW*0.36;
 }
-function movePlayerX(dx){var n=Math.abs(dx),sgn=dx>0?1:-1;P.pushing=false;while(n>1e-6){var m=Math.min(1,n);n-=m;m*=sgn;var r=pr(P.x+m,P.y);if(hitStatic(r)){P.vx=0;break;}var hit=false;for(var c of [crate,crate2,log]){if(c.w>0 && ov(r,crateRect(c))){var nc={x:c.x+m,y:c.y,w:c.w,h:c.h};if(P.onGround&&!hitStatic(nc)){c.x+=m;P.x+=m;P.pushing=true;hit=true;break;}else{P.vx=0;hit=true;break;}}}if(!hit)P.x+=m;}}
-function movePlayerY(dy){var n=Math.abs(dy),sgn=dy>0?1:-1;P.onGround=false;while(n>1e-6){var m=Math.min(1,n);n-=m;m*=sgn;var r=pr(P.x,P.y+m);if(hitStatic(r)){if(m>0)P.onGround=true;P.vy=0;break;}var onBox=false;for(var c of [crate,crate2,log]){if(c.w>0 && ov(r,crateRect(c))){if(m>0){P.onGround=true;if(c===log||c===crate&&crateInWater||c===crate2&&crate2InWater)P.x+=c.vx; /* If on floating box or log, move with it */}P.vy=0;onBox=true;break;}}if(!onBox)P.y+=m;else break;}}
-
-// Updated crate physics for water
-function updateCrate(c, isCrate2){if(!c || c.w===0) return; 
-  var inWater = (c.x + c.w/2 > LAKE_X && c.x + c.w/2 < LAKE_X2);
-  
-  if(inWater) {
-    if(isCrate2) crate2InWater = true; else crateInWater = true;
-    // Float logic: Snap to water level and move with log speed
-    c.y = G - c.h + 4; // Slightly submerged
-    c.vy = 0;
-    c.x += 0.6; // Move at same speed as log (0.6)
-  } else {
-    if(isCrate2) crate2InWater = false; else crateInWater = false;
-    c.vy=Math.min(c.vy+0.55,12);
-    var n=Math.abs(c.vy);
-    while(n>1e-6){var m=Math.min(1,n);n-=m;var nc={x:c.x,y:c.y+m,w:c.w,h:c.h};
-      if(hitStatic(nc)){c.vy=0;break;}c.y+=m;}
-  }
-}
-
+function movePlayerX(dx){var n=Math.abs(dx),sgn=dx>0?1:-1;P.pushing=false;while(n>1e-6){var m=Math.min(1,n);n-=m;m*=sgn;var r=pr(P.x+m,P.y);if(hitStatic(r)){P.vx=0;break;}var hit=false;var objectsToCheck=[crate,crate2,log]; if(pushLogObj) objectsToCheck.push(pushLogObj);
+  for(var c of objectsToCheck){if(c.w>0 && ov(r,crateRect(c))){var nc={x:c.x+m,y:c.y,w:c.w,h:c.h};if(P.onGround&&!hitStatic(nc)){c.x+=m;P.x+=m;P.pushing=true;hit=true;break;}else{P.vx=0;hit=true;break;}}}if(!hit)P.x+=m;}}
+function movePlayerY(dy){var n=Math.abs(dy),sgn=dy>0?1:-1;P.onGround=false;while(n>1e-6){var m=Math.min(1,n);n-=m;m*=sgn;var r=pr(P.x,P.y+m);if(hitStatic(r)){if(m>0)P.onGround=true;P.vy=0;break;}var onBox=false;var objectsToCheck=[crate,crate2,log]; if(pushLogObj) objectsToCheck.push(pushLogObj);
+  for(var c of objectsToCheck){if(c.w>0 && ov(r,crateRect(c))){if(m>0){P.onGround=true;if(c===log || (c===pushLogObj && logInWater)) P.x+=c.vx; }P.vy=0;onBox=true;break;}}if(!onBox)P.y+=m;else break;}}
+function updateCrate(c){if(!c || c.w===0) return; c.vy=Math.min(c.vy+0.55,12);var n=Math.abs(c.vy);while(n>1e-6){var m=Math.min(1,n);n-=m;var nc={x:c.x,y:c.y+m,w:c.w,h:c.h};if(hitStatic(nc)){c.vy=0;break;}c.y+=m;}}
 function die(){if(!P.dead&&state==='play'){P.dead=1;}}
 
 function update(){
@@ -91,11 +78,26 @@ function update(){
   P.vy=Math.min(P.vy+0.55,12);var wasAir=!P.onGround,pv=P.vy;movePlayerY(P.vy);
   if(P.onGround&&wasAir&&pv>4)dust(P.x,P.y,5,14);
   if(P.onGround&&Math.abs(P.vx)>0.3)P.anim+=Math.abs(P.vx)*0.09;else if(!P.onGround)P.anim+=0.05;
+  updateCrate(crate);updateCrate(crate2);
   
-  // Update Crates (crate and crate2)
-  updateCrate(crate, false); updateCrate(crate2, true);
-  
+  // Level 2 Log (Moving)
   if(log.w>0){log.x+=log.vx*log.dir;if(log.x<LAKE_X||log.x+log.w>LAKE_X2)log.dir*=-1;}
+
+  // Level 3 Pushable Log (Floting)
+  if(pushLogObj) {
+    var isInWater = (pushLogObj.x + pushLogObj.w/2 > LAKE_X && pushLogObj.x + pushLogObj.w/2 < LAKE_X2);
+    if(isInWater) {
+      logInWater = true;
+      pushLogObj.y = G - pushLogObj.h + 4; // Float on water
+      pushLogObj.x += 0.6; // Drift right
+      // If player stands on it, player moves right too
+      var pbCheck = {x:P.x-5,y:P.y-32,w:10,h:30};
+      if(ov(pbCheck, crateRect(pushLogObj))) { P.x += 0.6; }
+    } else {
+      logInWater = false;
+    }
+  }
+
   for(var i=0;i<checkpoints.length;i++){if(P.x>=checkpoints[i].x&&checkpoints[i].x>cur.x)cur=checkpoints[i];}
   
   var pb={x:P.x-5,y:P.y-32,w:10,h:30};
@@ -106,8 +108,9 @@ function update(){
   
   if(P.x>LAKE_X&&P.x<LAKE_X2&&P.y>G-5){
     var onLog=ov(pb,crateRect(log));
+    var onPushLog = pushLogObj ? ov(pb, crateRect(pushLogObj)) : false;
     var onCrate=ov(pb,crateRect(crate)) || ov(pb,crateRect(crate2));
-    if(!onLog && !onCrate)die();
+    if(!onLog && !onPushLog && !onCrate)die();
   }
   
   if(P.y>G+260)die();
@@ -141,23 +144,19 @@ function draw(){
   for(var w=0;w<walls.length-2;w++){var wl=walls[w];if(wl.x+wl.w<x0||wl.x>x1)continue;ctx.fillRect(wl.x,wl.y,wl.w,wl.h);}
   for(var s=0;s<spikes.length;s++){var sp=spikes[s];if(sp[1]<x0||sp[0]>x1)continue;ctx.beginPath();for(var sx=sp[0];sx<sp[1]-3;sx+=8){ctx.moveTo(sx,G+1);ctx.lineTo(sx+4,G-17-hash(sx)*4);ctx.lineTo(sx+8,G+1);}ctx.fill();}
   
-  // Draw Crates
-  for(var c of [crate,crate2]){
-    if(c.w>0 && c.x+c.w>x0&&c.x<x1){
-      ctx.fillStyle='#0b0b0b';
-      ctx.fillRect(c.x,c.y,c.w,c.h);
-      // Draw a little water splash if it's in water
-      if((c === crate && crateInWater) || (c === crate2 && crate2InWater)) {
-        ctx.strokeStyle = 'rgba(100,150,200,0.5)';
-        ctx.beginPath();
-        ctx.moveTo(c.x, c.y + 4);
-        ctx.lineTo(c.x + c.w, c.y + 4);
-        ctx.stroke();
-      }
+  for(var c of [crate,crate2]){if(c.w>0 && c.x+c.w>x0&&c.x<x1){ctx.fillStyle='#0b0b0b';ctx.fillRect(c.x,c.y,c.w,c.h);}}
+  
+  if(log.w>0 && log.x+log.w>x0&&log.x<x1){ctx.fillStyle='#1a1a1a';ctx.fillRect(log.x,log.y,log.w,log.h);}
+  
+  if(pushLogObj && pushLogObj.x+pushLogObj.w>x0 && pushLogObj.x<x1) {
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(pushLogObj.x, pushLogObj.y, pushLogObj.w, pushLogObj.h);
+    if(logInWater) {
+      ctx.strokeStyle = 'rgba(100,150,200,0.5)';
+      ctx.beginPath(); ctx.moveTo(pushLogObj.x, pushLogObj.y + 4); ctx.lineTo(pushLogObj.x + pushLogObj.w, pushLogObj.y + 4); ctx.stroke();
     }
   }
 
-  if(log.w>0 && log.x+log.w>x0&&log.x<x1){ctx.fillStyle='#1a1a1a';ctx.fillRect(log.x,log.y,log.w,log.h);}
   if(boulder&&boulder.active){var bcx=boulder.x,bcy=boulder.y;ctx.save();ctx.translate(bcx,bcy);ctx.rotate(boulder.rot);ctx.fillStyle='#050505';ctx.beginPath();ctx.arc(0,0,boulder.r,0,6.3);ctx.fill();ctx.restore();}
   if(!(P.dead>0&&P.dead>12))drawPlayer();
   for(var k=0;k<parts.length;k++){var pt=parts[k];ctx.fillStyle='rgba(165,168,163,'+Math.min(.7,pt.l/pt.m)+')';ctx.beginPath();ctx.arc(pt.x,pt.y,1.6,0,6.3);ctx.fill();}
