@@ -1,5 +1,5 @@
 
-// GAME.JS - Engine - Boulder once + Lake fix
+ // GAME.JS - Engine - Boulder once + Lake fix
 (function(){
 'use strict';
 var cv=document.getElementById('c'),ctx=cv.getContext('2d');
@@ -25,8 +25,14 @@ function buildLevel(n){
 }
 
 function resetObjects(){
-  crate={x: (LD.crates&&LD.crates[0])?LD.crates[0].x:1200,y:G-36,w:36,h:36,vy:0};
-  crate2={x: (LD.crates&&LD.crates[1])?LD.crates[1].x:5320,y:G-36,w:36,h:36,vy:0};
+  crate=(LD.crates&&LD.crates[0])
+    ?{x:LD.crates[0].x,y:G-36,w:36,h:36,vy:0}
+    :{x:0,y:0,w:0,h:0,vy:0};
+
+  crate2=(LD.crates&&LD.crates[1])
+    ?{x:LD.crates[1].x,y:G-36,w:36,h:36,vy:0}
+    :{x:0,y:0,w:0,h:0,vy:0};
+
   log= LD.log?{x:LD.log.x,y:G-12,w:LD.log.w,h:14,vx:LD.log.speed,dir:1}:{x:0,y:0,w:0,h:0,vx:0,dir:1};
   stal= LD.stal?{x:LD.stal.x,y:-10,w:14,h:40,state:0,t:0,vy:0}:{x:0,y:0,w:0,h:0,state:0,t:0,vy:0};
   if(!boulder || !boulder.fallen) boulder={active:false,x:0,y:G-44,r:44,rot:0,vy:0,fallen:false};
