@@ -1,4 +1,4 @@
-// GAME.JS - Engine - Boulder once + Lake fix + Moving Walls + Wind Zones
+// GAME.JS - Engine - Lake + Log + Rain (Level 3)
 (function(){
 'use strict';
 var cv=document.getElementById('c'),ctx=cv.getContext('2d');
@@ -9,19 +9,13 @@ addEventListener('resize',resize);resize();
 function rnd(i,s){var v=Math.sin(i*127.1+s*311.7)*43758.5453;return v-Math.floor(v);}
 function ov(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
 
-var currentLevel=1,LD=null,END=7800,segs=[],gaps=[],spikes=[],walls=[],solids=[],spikeRects=[],checkpoints=[],LAKE_X=4400,LAKE_X2=4700,BOULDER_AT=2480,PIT_X=3350,PIT_X2=3420,EXIT_X2=7350;
+var currentLevel=1,LD=null,END=7800,segs=[],gaps=[],spikes=[],walls=[],solids=[],spikeRects=[],checkpoints=[],LAKE_X=99999,LAKE_X2=99999,BOULDER_AT=99999,PIT_X=99999,PIT_X2=99999,EXIT_X2=7350;
 var crate,crate2,boulder,log,parts=[];
-var movingWalls = []; 
-var windZones = []; // NEW
 
 function buildLevel(n){
-  if(!LEVELS_DATA[n]) { console.warn("Level data missing for", n); n = 1; }
+  if(!LEVELS_DATA[n]) { n = 1; }
   currentLevel=n; LD=LEVELS_DATA[n]; END=LD.END;
   segs=LD.segs; gaps=LD.gaps; spikes=LD.spikes||[]; walls=(LD.walls||[]).concat([{x:-340,y:-3000,w:300,h:4000},{x:END,y:-3000,w:300,h:4000}]);
-  
-  movingWalls = (LD.movingWalls||[]).map(mw => ({...mw, startX: mw.x, dir: 1}));
-  windZones = LD.windZones || []; // NEW
-  
   solids=segs.map(s=>({x:s[0],y:G,w:s[1]-s[0],h:400})).concat(walls);
   spikeRects=spikes.map(s=>({x:s[0]+2,y:G-12,w:s[1]-s[0]-4,h:12}));
   checkpoints=(LD.checkpoints||[]).map(x=>({x:x}));
@@ -35,12 +29,12 @@ function resetObjects(){
   crate2=(LD.crates&&LD.crates[1])?{x:LD.crates[1].x,y:G-36,w:36,h:36,vy:0}:{x:0,y:0,w:0,h:0,vy:0};
   log= LD.log?{x:LD.log.x,y:G-12,w:LD.log.w,h:14,vx:LD.log.speed,dir:1}:{x:0,y:0,w:0,h:0,vx:0,dir:1};
   if(!boulder || !boulder.fallen) boulder={active:false,x:0,y:G-44,r:44,rot:0,vy:0,fallen:false};
-  movingWalls.forEach(mw => { mw.x = mw.startX; });
   parts=[];
 }
 
 var P={x:80,y:G,vx:0,vy:0,w:14,h:34,face:1,onGround:true,coyote:0,buf:0,anim:0,pushing:false,dead:0};
 var keys={l:false,r:false,j:false},jPrev=false,state='title',tick=0,cur={x:80},camX=0;
+var rainDrops = [];
 
 function pr(x,y){return {x:x-7,y:y-34,w:14,h:34};}
 function crateRect(c){return {x:c.x,y:c.y,w:c.w,h:c.h};}
@@ -62,22 +56,22 @@ function update(){
   tick++;var tx;if(state==='title'){tx=P.x-viewW*0.36;camX+=(tx-camX)*0.12;return;}if(state==='end')return;
   if(P.dead){P.dead++;if(P.dead===30)respawn();if(P.dead>=60)P.dead=0;return;}
   
-  movingWalls.forEach(mw => { mw.x += mw.speed * mw.dir; if (mw.x > mw.startX + mw.rangeX || mw.x < mw.startX) mw.dir *= -1; });
+  // Rain effect update
+  if(currentLevel===3){
+    if(rainDrops.length < 100 && Math.random() < 0.5){
+      rainDrops.push({x: camX + Math.random()*viewW, y: -10, speed: 10 + Math.random()*10});
+    }
+    for(var i=rainDrops.length-1; i>=0; i--){
+      rainDrops[i].y += rainDrops[i].speed;
+      if(rainDrops[i].y > G+50) rainDrops.splice(i,1);
+    }
+  } else {
+    rainDrops = [];
+  }
 
   if(keys.j&&!jPrev)P.buf=7;jPrev=keys.j;var dir=(keys.r?1:0)-(keys.l?1:0);if(dir)P.face=dir;
-  var sp=3.0*(P.pushing?0.55:1);P.vx+=(dir*sp-P.vx)*0.3;
-  
-  // NEW: Wind Logic
-  var windForce = 0;
-  for(var w of windZones) {
-    if (P.x > w.x && P.x < w.x2) {
-      windForce = w.force;
-      if (tick % 10 === 0) dust(P.x + 10, P.y - 20, 1, 20); // Wind particles effect
-    }
-  }
-  
-  if(Math.abs(P.vx)<0.05 && windForce === 0)P.vx=0;
-  movePlayerX(P.vx - windForce); // Subtract windForce to push player back
+  var sp=3.0*(P.pushing?0.55:1);P.vx+=(dir*sp-P.vx)*0.3;if(Math.abs(P.vx)<0.05)P.vx=0;
+  movePlayerX(P.vx);
   
   if(P.onGround)P.coyote=6;else if(P.coyote>0)P.coyote--;if(P.buf>0)P.buf--;
   if(P.buf>0&&P.coyote>0){P.vy=-8;P.buf=0;P.coyote=0;P.onGround=false;}if(!keys.j&&P.vy<-4.5)P.vy=-4.5;
@@ -90,11 +84,16 @@ function update(){
   
   var pb={x:P.x-5,y:P.y-32,w:10,h:30};
   for(var s=0;s<spikeRects.length;s++){if(ov(pb,spikeRects[s]))die();}
-  for(var mw of movingWalls) { if(ov(pb, {x: mw.x, y: mw.y, w: mw.w, h: mw.h})) die(); }
 
   if(boulder && !boulder.fallen&&!boulder.active&&P.x>=BOULDER_AT){boulder.active=true;boulder.x=P.x-300;boulder.y=G-boulder.r;boulder.vy=0;}
   if(boulder && boulder.active){boulder.x+=3.2;boulder.rot+=3.2/boulder.r;if(boulder.x>PIT_X&&boulder.x<PIT_X2){boulder.vy+=0.9;boulder.y+=boulder.vy;}if(boulder.y>G+150){boulder.active=false;boulder.fallen=true;dust(PIT_X+35,G,12,30);}var cx=boulder.x,cy=boulder.y,qx=Math.max(pb.x,Math.min(cx,pb.x+pb.w)),qy=Math.max(pb.y,Math.min(cy,pb.y+pb.h));var ddx=cx-qx,ddy=cy-qy;if(ddx*ddx+ddy*ddy<(boulder.r-5)*(boulder.r-5))die();}
-  if(P.x>LAKE_X&&P.x<LAKE_X2&&P.y>G-5){var onLog=ov(pb,crateRect(log));if(!onLog)die();}
+  
+  if(P.x>LAKE_X&&P.x<LAKE_X2&&P.y>G-5){
+    var onLog=ov(pb,crateRect(log));
+    var onCrate=ov(pb,crateRect(crate)) || ov(pb,crateRect(crate2));
+    if(!onLog && !onCrate)die();
+  }
+  
   if(P.y>G+260)die();
   for(var k=parts.length-1;k>=0;k--){var p=parts[k];p.x+=p.vx;p.y+=p.vy;p.vy+=0.02;p.l--;if(p.l<=0)parts.splice(k,1);}
   
@@ -124,14 +123,25 @@ function draw(){
   ctx.fillStyle='#000';
   for(var i=0;i<segs.length;i++){var a=segs[i][0],b=segs[i][1];if(b<x0||a>x1)continue;ctx.fillRect(a,G,b-a,yb-G);var xs=Math.max(a,Math.floor(x0/7)*7),xe=Math.min(b,x1);ctx.beginPath();for(var x=xs;x<xe;x+=7){var h=2+hash(x)*7;ctx.moveTo(x,G+1);ctx.lineTo(x+3.5,G-h);ctx.lineTo(x+7,G+1);}ctx.fill();}
   for(var w=0;w<walls.length-2;w++){var wl=walls[w];if(wl.x+wl.w<x0||wl.x>x1)continue;ctx.fillRect(wl.x,wl.y,wl.w,wl.h);}
-  ctx.fillStyle='#050505';
-  for(var mw of movingWalls) { if(mw.x+mw.w < x0 || mw.x > x1) continue; ctx.fillRect(mw.x, mw.y, mw.w, mw.h); }
   for(var s=0;s<spikes.length;s++){var sp=spikes[s];if(sp[1]<x0||sp[0]>x1)continue;ctx.beginPath();for(var sx=sp[0];sx<sp[1]-3;sx+=8){ctx.moveTo(sx,G+1);ctx.lineTo(sx+4,G-17-hash(sx)*4);ctx.lineTo(sx+8,G+1);}ctx.fill();}
   for(var c of [crate,crate2]){if(c.w>0 && c.x+c.w>x0&&c.x<x1){ctx.fillStyle='#0b0b0b';ctx.fillRect(c.x,c.y,c.w,c.h);}}
   if(log.w>0 && log.x+log.w>x0&&log.x<x1){ctx.fillStyle='#1a1a1a';ctx.fillRect(log.x,log.y,log.w,log.h);}
   if(boulder&&boulder.active){var bcx=boulder.x,bcy=boulder.y;ctx.save();ctx.translate(bcx,bcy);ctx.rotate(boulder.rot);ctx.fillStyle='#050505';ctx.beginPath();ctx.arc(0,0,boulder.r,0,6.3);ctx.fill();ctx.restore();}
   if(!(P.dead>0&&P.dead>12))drawPlayer();
   for(var k=0;k<parts.length;k++){var pt=parts[k];ctx.fillStyle='rgba(165,168,163,'+Math.min(.7,pt.l/pt.m)+')';ctx.beginPath();ctx.arc(pt.x,pt.y,1.6,0,6.3);ctx.fill();}
+  
+  // Draw Rain
+  if(currentLevel===3){
+    ctx.strokeStyle = 'rgba(200, 210, 220, 0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for(var r of rainDrops){
+      ctx.moveTo(r.x, r.y);
+      ctx.lineTo(r.x, r.y + 15);
+    }
+    ctx.stroke();
+  }
+
   ctx.setTransform(dpr,0,0,dpr,0,0);var vg=ctx.createRadialGradient(iw/2,ih*.55,Math.min(iw,ih)*.25,iw/2,ih*.55,Math.max(iw,ih)*.78);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.82)');ctx.fillStyle=vg;ctx.fillRect(0,0,iw,ih);
   ctx.setTransform(1,0,0,1,0,0);ctx.save();ctx.translate(-Math.floor(Math.random()*128),-Math.floor(Math.random()*128));ctx.globalAlpha=.7;ctx.fillStyle=noisePat;ctx.fillRect(0,0,cv.width+128,cv.height+128);ctx.restore();
   var fa=0;if(P.dead>0){fa=P.dead<=30?P.dead/30:1-(P.dead-30)/30;}if(fa>0){ctx.fillStyle='rgba(0,0,0,'+fa+')';ctx.fillRect(0,0,cv.width,cv.height);}
