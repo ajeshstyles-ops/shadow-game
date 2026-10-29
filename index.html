@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>SHADOW</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;user-select:none;font-family:Georgia,serif}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+.ov{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#e9e6dc;background:radial-gradient(ellipse at center,rgba(0,0,0,.25),rgba(0,0,0,.7));transition:opacity .8s}
+.ov.hid{opacity:0;pointer-events:none}
+.ov h1{margin:0;font-size:clamp(40px,12vw,84px);letter-spacing:.35em;padding-left:.35em}
+.sub{opacity:.6;letter-spacing:.2em;font-size:13px;text-transform:uppercase}
+.tap{margin:46px 0 0;letter-spacing:.3em;font-size:14px;text-transform:uppercase;animation:blink 1.8s infinite}
+@keyframes blink{0%,100%{opacity:.25}50%{opacity:1}}
+.pad{position:fixed;bottom:26px;z-index:5;display:none;gap:14px}body.play .pad{display:flex}
+#padL{left:16px}#padR{right:16px}.btn{width:78px;height:78px;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.26);color:#fff;font-size:28px;display:flex;align-items:center;justify-content:center}
+#padR .btn{width:92px;height:92px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="title" class="ov"><h1>SHADOW</h1><p class="sub" id="levelName">Level 1 - The Forest</p><p class="tap">tap to begin</p><p style="margin-top:20px;opacity:.4;font-size:11px;letter-spacing:.2em">PUSH THE BOX · TRUST NOTHING</p></div>
+<div id="end" class="ov hid"><h2 id="endText">to be continued...</h2><button id="again" style="background:none;border:1px solid #fff;color:#fff;padding:12px 30px;letter-spacing:.25em">play again</button></div>
+<div class="pad" id="padL"><div class="btn" id="bl">◀</div><div class="btn" id="br">▶</div></div>
+<div class="pad" id="padR"><div class="btn" id="bj">▲</div></div>
+
+<!-- നമ്മൾ പൊട്ടിച്ച ഫയലുകൾ -->
+<script src="levels.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
