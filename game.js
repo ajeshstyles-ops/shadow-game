@@ -1,5 +1,5 @@
 
-// GAME.JS - Engine - Boulder once + Lake fix
+// GAME.JS - Multi-box support - Fixed for your screenshots
 (function(){
 'use strict';
 var cv=document.getElementById('c'),ctx=cv.getContext('2d');
@@ -11,7 +11,7 @@ function rnd(i,s){var v=Math.sin(i*127.1+s*311.7)*43758.5453;return v-Math.floor
 function ov(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
 
 var currentLevel=1,LD=null,END=7800,segs=[],gaps=[],spikes=[],walls=[],solids=[],spikeRects=[],checkpoints=[],LAKE_X=4400,LAKE_X2=4700,BOULDER_AT=2480,PIT_X=3350,PIT_X2=3420,EXIT_X2=7350;
-var crate,crate2,stal,boulder,log,parts=[];
+var crates=[],stal,boulder,log,parts=[];
 
 function buildLevel(n){
   currentLevel=n; LD=LEVELS_DATA[n]; END=LD.END;
@@ -25,9 +25,8 @@ function buildLevel(n){
 }
 
 function resetObjects(){
-  crate={x: (LD.crates&&LD.crates[0])?LD.crates[0].x:1200,y:G-36,w:36,h:36,vy:0};
-  crate2={x: (LD.crates&&LD.crates[1])?LD.crates[1].x:5320,y:G-36,w:36,h:36,vy:0};
-  log= LD.log?{x:LD.log.x,y:G-12,w:LD.log.w,h:14,vx:LD.log.speed,dir:1}:{x:0,y:0,w:0,h:0,vx:0,dir:1};
+  crates = (LD.crates||[]).map(c=>({x:c.x,y:G-36,w:36,h:36,vy:0}));
+  log= LD.log?{x:LD.log.x,y:G-12,w:L.log.w,h:14,vx:LD.log.speed,dir:1}:{x:0,y:0,w:0,h:0,vx:0,dir:1};
   stal= LD.stal?{x:LD.stal.x,y:-10,w:14,h:40,state:0,t:0,vy:0}:{x:0,y:0,w:0,h:0,state:0,t:0,vy:0};
   if(!boulder || !boulder.fallen) boulder={active:false,x:0,y:G-44,r:44,rot:0,vy:0,fallen:false};
   parts=[];
@@ -48,9 +47,41 @@ function respawn(){
   if(cur.x>1800 && stal){stal.state=3;stal.y=G-stal.h;}
   camX=P.x-viewW*0.36;
 }
-function movePlayerX(dx){var n=Math.abs(dx),sgn=dx>0?1:-1;P.pushing=false;while(n>1e-6){var m=Math.min(1,n);n-=m;m*=sgn;var r=pr(P.x+m,P.y);if(hitStatic(r)){P.vx=0;break;}var hit=false;for(var c of [crate,crate2,log]){if(c.w>0 && ov(r,crateRect(c))){var nc={x:c.x+m,y:c.y,w:c.w,h:c.h};if(P.onGround&&!hitStatic(nc)){c.x+=m;P.x+=m;P.pushing=true;hit=true;break;}else{P.vx=0;hit=true;break;}}}if(!hit)P.x+=m;}}
-function movePlayerY(dy){var n=Math.abs(dy),sgn=dy>0?1:-1;P.onGround=false;while(n>1e-6){var m=Math.min(1,n);n-=m;m*=sgn;var r=pr(P.x,P.y+m);if(hitStatic(r)){if(m>0)P.onGround=true;P.vy=0;break;}var onBox=false;for(var c of [crate,crate2,log]){if(c.w>0 && ov(r,crateRect(c))){if(m>0){P.onGround=true;if(c===log)P.x+=c.vx;}P.vy=0;onBox=true;break;}}if(!onBox)P.y+=m;else break;}}
-function updateCrate(c){if(!c || c.w===0) return; c.vy=Math.min(c.vy+0.55,12);var n=Math.abs(c.vy);while(n>1e-6){var m=Math.min(1,n);n-=m;var nc={x:c.x,y:c.y+m,w:c.w,h:c.h};if(hitStatic(nc)){c.vy=0;break;}c.y+=m;}}
+function movePlayerX(dx){
+  var n=Math.abs(dx),sgn=dx>0?1:-1;P.pushing=false;
+  while(n>1e-6){
+    var m=Math.min(1,n);n-=m;m*=sgn;var r=pr(P.x+m,P.y);
+    if(hitStatic(r)){P.vx=0;break;}
+    var hit=false;
+    for(var c of crates){
+      if(ov(r,crateRect(c))){
+        var nc={x:c.x+m,y:c.y,w:c.w,h:c.h};
+        if(P.onGround&&!hitStatic(nc)){c.x+=m;P.x+=m;P.pushing=true;hit=true;break;}
+        else{P.vx=0;hit=true;break;}
+      }
+    }
+    if(log.w>0 && ov(r,crateRect(log))){
+      var nc={x:log.x+m,y:log.y,w:log.w,h:log.h};
+      if(P.onGround&&!hitStatic(nc)){log.x+=m;P.x+=m;P.pushing=true;hit=true;}
+      else{P.vx=0;hit=true;}
+    }
+    if(!hit)P.x+=m;
+  }
+}
+function movePlayerY(dy){
+  var n=Math.abs(dy),sgn=dy>0?1:-1;P.onGround=false;
+  while(n>1e-6){
+    var m=Math.min(1,n);n-=m;m*=sgn;var r=pr(P.x,P.y+m);
+    if(hitStatic(r)){if(m>0)P.onGround=true;P.vy=0;break;}
+    var onBox=false;
+    for(var c of crates){
+      if(ov(r,crateRect(c))){if(m>0){P.onGround=true;}P.vy=0;onBox=true;break;}
+    }
+    if(log.w>0 && ov(r,crateRect(log))){if(m>0){P.onGround=true;P.x+=log.vx*log.dir;}P.vy=0;onBox=true;}
+    if(!onBox)P.y+=m; else break;
+  }
+}
+function updateCrate(c){c.vy=Math.min(c.vy+0.55,12);var n=Math.abs(c.vy);while(n>1e-6){var m=Math.min(1,n);n-=m;var nc={x:c.x,y:c.y+m,w:c.w,h:c.h};if(hitStatic(nc)){c.vy=0;break;}c.y+=m;}}
 function die(){if(!P.dead&&state==='play'){P.dead=1;}}
 
 function update(){
@@ -63,7 +94,7 @@ function update(){
   P.vy=Math.min(P.vy+0.55,12);var wasAir=!P.onGround,pv=P.vy;movePlayerY(P.vy);
   if(P.onGround&&wasAir&&pv>4)dust(P.x,P.y,5,14);
   if(P.onGround&&Math.abs(P.vx)>0.3)P.anim+=Math.abs(P.vx)*0.09;else if(!P.onGround)P.anim+=0.05;
-  updateCrate(crate);updateCrate(crate2);
+  for(var c of crates) updateCrate(c);
   if(log.w>0){log.x+=log.vx*log.dir;if(log.x<LAKE_X||log.x+log.w>LAKE_X2)log.dir*=-1;}
   for(var i=0;i<checkpoints.length;i++){if(P.x>=checkpoints[i].x&&checkpoints[i].x>cur.x)cur=checkpoints[i];}
   if(stal.w>0){
@@ -97,11 +128,11 @@ function draw(){
   var x0=camX-20,x1=camX+viewW+20,yb=G+(ih-gy)/S+40;
   for(var g=0;g<gaps.length;g++){var gp=gaps[g];if(gp[1]<x0||gp[0]>x1)continue;if(gp[0]===LAKE_X){ctx.fillStyle='rgba(20,30,40,0.9)';ctx.fillRect(gp[0],G,gp[1]-gp[0],yb-G);ctx.fillStyle='rgba(100,150,200,0.25)';ctx.fillRect(gp[0],G+2,gp[1]-gp[0],30);}else{var pg=ctx.createLinearGradient(0,G,0,G+260);pg.addColorStop(0,'rgba(0,0,0,0)');pg.addColorStop(.6,'rgba(0,0,0,.9)');pg.addColorStop(1,'#000');ctx.fillStyle=pg;ctx.fillRect(gp[0],G,gp[1]-gp[0],yb-G);}}
   ctx.fillStyle='#000';
-  for(var i=0;i<segs.length;i++){var a=segs[i][0],b=segs[i][1];if(b<x0||a>x1)continue;ctx.fillRect(a,G,b-a,yb-G);var xs=Math.max(a,Math.floor(x0/7)*7),xe=Math.min(b,x1);ctx.beginPath();for(var x=xs;x<xe;x+=7){var h=2+hash(x)*7;ctx.moveTo(x,G+1);ctx.lineTo(x+3.5,G-h);ctx.lineTo(x+7,G+1);}ctx.fill();}
+  for(var i=0;i<segs.length;i++){var a=segs[i][0],b=segs[i][1];if(b<x0||a>x1)continue;ctx.fillRect(a,G,b-a,yb-G);var xs=Math.max(a,Math.floor(x0/7)*7),Math.min(b,x1));ctx.beginPath();for(var x=xs;x<xe;x+=7){var h=2+hash(x)*7;ctx.moveTo(x,G+1);ctx.lineTo(x+3.5,G-h);ctx.lineTo(x+7,G+1);}ctx.fill();}
   for(var w=0;w<walls.length-2;w++){var wl=walls[w];if(wl.x+wl.w<x0||wl.x>x1)continue;ctx.fillRect(wl.x,wl.y,wl.w,wl.h);}
   for(var s=0;s<spikes.length;s++){var sp=spikes[s];if(sp[1]<x0||sp[0]>x1)continue;ctx.beginPath();for(var sx=sp[0];sx<sp[1]-3;sx+=8){ctx.moveTo(sx,G+1);ctx.lineTo(sx+4,G-17-hash(sx)*4);ctx.lineTo(sx+8,G+1);}ctx.fill();}
   if(stal.w>0 && stal.x>x0-200&&stal.x<x1+200){ctx.strokeStyle='#000';ctx.lineCap='round';ctx.lineWidth=15;ctx.beginPath();ctx.moveTo(stal.x+190,-420);ctx.quadraticCurveTo(stal.x+70,-90,stal.x-26,-12);ctx.stroke();ctx.fillStyle='#000';ctx.beginPath();ctx.moveTo(stal.x-7,stal.y);ctx.lineTo(stal.x+7,stal.y);ctx.lineTo(stal.x,stal.y+stal.h);ctx.fill();}
-  for(var c of [crate,crate2]){if(c.w>0 && c.x+c.w>x0&&c.x<x1){ctx.fillStyle='#0b0b0b';ctx.fillRect(c.x,c.y,c.w,c.h);}}
+  for(var c of crates){if(c.x+c.w>x0&&c.x<x1){ctx.fillStyle='#0b0b0b';ctx.fillRect(c.x,c.y,c.w,c.h);}}
   if(log.w>0 && log.x+log.w>x0&&log.x<x1){ctx.fillStyle='#1a1a1a';ctx.fillRect(log.x,log.y,log.w,log.h);}
   if(boulder&&boulder.active){var bcx=boulder.x,bcy=boulder.y;ctx.save();ctx.translate(bcx,bcy);ctx.rotate(boulder.rot);ctx.fillStyle='#050505';ctx.beginPath();ctx.arc(0,0,boulder.r,0,6.3);ctx.fill();ctx.restore();}
   if(!(P.dead>0&&P.dead>12))drawPlayer();
