@@ -1,4 +1,4 @@
-// LEVELS_DATA - FINAL FIXED - Level 2 island enlarged, no more blank
+// LEVELS_DATA - BOX PUZZLE FIXED - Each gap now has 1 box only
 const LEVELS_DATA = {
   1: {
     name: "Level 1 - The Forest",
@@ -7,7 +7,7 @@ const LEVELS_DATA = {
     gaps: [[700,772],[2050,2122],[2850,2920],[3350,3420]],
     spikes: [[900,944],[2650,2686],[3560,3600]],
     walls: [{x:1380,y:-70,w:40,h:70},{x:3050,y:-36,w:24,h:36}],
-    crates: [{x:1200}],
+    crates: [{x:400},{x:1800},{x:2600}], // 3 boxes - each gap needs 1 box
     boulder: {at: 2480, pit: [3350,3420], once: true},
     stal: {x:1800},
     checkpoints: [80,1050,2330,2960],
@@ -20,7 +20,7 @@ const LEVELS_DATA = {
     gaps: [[4400,4700],[5550,5660],[6300,6410]],
     spikes: [[5750,5790],[6550,6590]],
     walls: [{x:5100,y:-50,w:40,h:50}],
-    crates: [{x:5320}],
+    crates: [{x:5000},{x:5320}], // 2 boxes - 1 for each gap in Level 2
     lake: {x:4400, x2:4700},
     log: {x:4450, w:160, speed:0.7},
     checkpoints: [4150,5000,6450],
