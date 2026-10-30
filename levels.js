@@ -51,7 +51,6 @@ const LEVELS_DATA = {
   4: {
     name: "Level 4 - The Serpent's Chase",
     END: 12000,
-    // No gaps or spikes, just continuous ground with mud zones
     segs: [[-300, 12000]],
     gaps: [],
     spikes: [],
@@ -61,26 +60,25 @@ const LEVELS_DATA = {
       {x: 7500, y: -70, w: 50, h: 70},
       {x: 9500, y: -50, w: 30, h: 50}
     ],
-    crates: [
-      {x: 1500}, 
-      {x: 3500}, 
-      {x: 6000}, 
-      {x: 8500}
-    ],
-    // Mud slows the player down
+    crates: [{x: 1500}, {x: 3500}, {x: 6000}, {x: 8500}],
     mudZones: [
       {x: 2500, x2: 3500},
       {x: 5000, x2: 6000},
       {x: 8000, x2: 9000}
     ],
-    // Hanging vines (player must jump over or avoid)
-    vines: [
-      {x: 3800, w: 20, h: 120},
-      {x: 6800, w: 20, h: 100},
-      {x: 10500, w: 20, h: 130}
+    // Strong Wind Zones (Pushes player back)
+    windZones: [
+      {x: 4000, x2: 5000, force: 1.5},
+      {x: 7000, x2: 8500, force: 2.0}
     ],
-    // The Snake starts at x= -600 and chases the player
-    snake: {startX: -600, speed: 1.2}, 
+    // Falling Trees
+    fallingTrees: [
+      {x: 1500, h: 200}, 
+      {x: 3000, h: 250}, 
+      {x: 5500, h: 180}, 
+      {x: 8000, h: 220}
+    ],
+    snake: {startX: -600, speed: 1.5}, 
     checkpoints: [100, 3000, 6000, 9000],
     exit: 11500
   }
