@@ -1,4 +1,4 @@
-// GAME.JS - Engine - Pushable Log (Auto-carry Player)
+// GAME.JS - Engine - Level 4 Snake Chase
 (function(){
 'use strict';
 var cv=document.getElementById('c'),ctx=cv.getContext('2d');
@@ -12,6 +12,7 @@ function ov(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
 var currentLevel=1,LD=null,END=7800,segs=[],gaps=[],spikes=[],walls=[],solids=[],spikeRects=[],checkpoints=[],LAKE_X=99999,LAKE_X2=99999,BOULDER_AT=99999,PIT_X=99999,PIT_X2=99999,EXIT_X2=7350;
 var crate,crate2,boulder,log,parts=[],pushLogObj=null;
 var logInWater = false; 
+var mudZones = []; var vines = []; var snake = null; // NEW for Level 4
 
 function buildLevel(n){
   if(!LEVELS_DATA[n]) { n = 1; }
@@ -23,6 +24,10 @@ function buildLevel(n){
   LAKE_X=LD.lake?LD.lake.x:99999; LAKE_X2=LD.lake?LD.lake.x2:99999;
   BOULDER_AT=LD.boulder?LD.boulder.at:99999; PIT_X=LD.boulder?LD.boulder.pit[0]:99999; PIT_X2=LD.boulder?LD.boulder.pit[1]:99999;
   EXIT_X2=LD.exit;
+  
+  mudZones = LD.mudZones || [];
+  vines = (LD.vines||[]).map(v => ({x:v.x, w:v.w, h:v.h, y: G-v.h, phase: Math.random()*Math.PI*2}));
+  snake = LD.snake ? { x: LD.snake.startX, y: G-20, speed: LD.snake.speed, length: 120, points: [] } : null;
 }
 
 function resetObjects(){
@@ -33,6 +38,12 @@ function resetObjects(){
   logInWater = false;
   
   if(!boulder || !boulder.fallen) boulder={active:false,x:0,y:G-44,r:44,rot:0,vy:0,fallen:false};
+  
+  if(snake) {
+    snake.x = LD.snake.startX;
+    snake.points = [];
+    for(var i=0; i<20; i++) snake.points.push({x: snake.x - i*6, y: snake.y});
+  }
   parts=[];
 }
 
@@ -68,7 +79,14 @@ function update(){
   } else { rainDrops = []; }
 
   if(keys.j&&!jPrev)P.buf=7;jPrev=keys.j;var dir=(keys.r?1:0)-(keys.l?1:0);if(dir)P.face=dir;
-  var sp=3.0*(P.pushing?0.55:1);P.vx+=(dir*sp-P.vx)*0.3;if(Math.abs(P.vx)<0.05)P.vx=0;
+  
+  // Mud Logic (Level 4)
+  var isInMud = false;
+  for(var m of mudZones) {
+    if (P.x > m.x && P.x < m.x2) isInMud = true;
+  }
+  var sp=3.0*(P.pushing?0.55:1) * (isInMud ? 0.5 : 1); // Slow down in mud
+  P.vx+=(dir*sp-P.vx)*0.3;if(Math.abs(P.vx)<0.05)P.vx=0;
   movePlayerX(P.vx);
   
   if(P.onGround)P.coyote=6;else if(P.coyote>0)P.coyote--;if(P.buf>0)P.buf--;
@@ -80,25 +98,35 @@ function update(){
   
   if(log.w>0){log.x+=log.vx*log.dir;if(log.x<LAKE_X||log.x+log.w>LAKE_X2)log.dir*=-1;}
 
-  // Pushable Log Logic (Auto Carry Player)
   if(pushLogObj) {
     var isInWater = (pushLogObj.x + pushLogObj.w/2 > LAKE_X && pushLogObj.x + pushLogObj.w/2 < LAKE_X2);
     if(isInWater) {
       logInWater = true;
       pushLogObj.y = G - pushLogObj.h + 4; 
-      
       var oldX = pushLogObj.x;
-      pushLogObj.x += 0.6; // Drift speed
-      
-      // Check if player is standing on the log
-      var pbCheck = {x:P.x-5,y:P.y-32,w:10,h:30};
-      var feet = {x:P.x-6, y:P.y-2, w:12, h:4}; // Check just below feet
-      
-      if(ov(feet, crateRect(pushLogObj))) {
-        P.x += (pushLogObj.x - oldX); // Move player with the log
-      }
-    } else {
-      logInWater = false;
+      pushLogObj.x += 0.6; 
+      var feet = {x:P.x-6, y:P.y-2, w:12, h:4}; 
+      if(ov(feet, crateRect(pushLogObj))) { P.x += (pushLogObj.x - oldX); }
+    } else { logInWater = false; }
+  }
+
+  // Snake Logic (Level 4)
+  if(snake) {
+    // Snake follows player
+    var targetX = P.x - 100; // Stays slightly behind
+    if (snake.x < targetX) {
+      snake.x += snake.speed;
+    } else if (snake.x > targetX + 200) {
+      snake.x -= snake.speed * 0.5; // Slow down if too far ahead
+    }
+    
+    // Update snake body points
+    snake.points.unshift({x: snake.x, y: snake.y + Math.sin(tick*0.1)*10});
+    if (snake.points.length > 20) snake.points.pop();
+    
+    // Check collision with player
+    for(var pt of snake.points) {
+      if (Math.abs(pt.x - P.x) < 20 && Math.abs(pt.y - P.y) < 20) die();
     }
   }
 
@@ -106,6 +134,7 @@ function update(){
   
   var pb={x:P.x-5,y:P.y-32,w:10,h:30};
   for(var s=0;s<spikeRects.length;s++){if(ov(pb,spikeRects[s]))die();}
+  for(var v of vines) { if(ov(pb, {x:v.x, y:v.y, w:v.w, h:v.h})) die(); } // Vines kill/block
 
   if(boulder && !boulder.fallen&&!boulder.active&&P.x>=BOULDER_AT){boulder.active=true;boulder.x=P.x-300;boulder.y=G-boulder.r;boulder.vy=0;}
   if(boulder && boulder.active){boulder.x+=3.2;boulder.rot+=3.2/boulder.r;if(boulder.x>PIT_X&&boulder.x<PIT_X2){boulder.vy+=0.9;boulder.y+=boulder.vy;}if(boulder.y>G+150){boulder.active=false;boulder.fallen=true;dust(PIT_X+35,G,12,30);}var cx=boulder.x,cy=boulder.y,qx=Math.max(pb.x,Math.min(cx,pb.x+pb.w)),qy=Math.max(pb.y,Math.min(cy,pb.y+pb.h));var ddx=cx-qx,ddy=cy-qy;if(ddx*ddx+ddy*ddy<(boulder.r-5)*(boulder.r-5))die();}
@@ -123,6 +152,7 @@ function update(){
   if(P.x>EXIT_X2-20&&state==='play'){
     if(currentLevel===1){ currentLevel=2; buildLevel(2); resetObjects(); cur=checkpoints[0]; P.x=cur.x; P.y=G; camX=P.x-viewW*0.36; }
     else if (currentLevel===2) { currentLevel=3; buildLevel(3); resetObjects(); cur=checkpoints[0]; P.x=cur.x; P.y=G; camX=P.x-viewW*0.36; }
+    else if (currentLevel===3) { currentLevel=4; buildLevel(4); resetObjects(); cur=checkpoints[0]; P.x=cur.x; P.y=G; camX=P.x-viewW*0.36; }
     else { state='end'; document.getElementById('end').classList.remove('hid'); document.body.classList.remove('play'); }
   }
 
@@ -143,9 +173,28 @@ function draw(){
   ctx.setTransform(dpr*S,0,0,dpr*S,-camX*S*dpr,(gy-G*S)*dpr);
   var x0=camX-20,x1=camX+viewW+20,yb=G+(ih-gy)/S+40;
   for(var g=0;g<gaps.length;g++){var gp=gaps[g];if(gp[1]<x0||gp[0]>x1)continue;if(gp[0]===LAKE_X){ctx.fillStyle='rgba(20,30,40,0.9)';ctx.fillRect(gp[0],G,gp[1]-gp[0],yb-G);ctx.fillStyle='rgba(100,150,200,0.25)';ctx.fillRect(gp[0],G+2,gp[1]-gp[0],30);}else{var pg=ctx.createLinearGradient(0,G,0,G+260);pg.addColorStop(0,'rgba(0,0,0,0)');pg.addColorStop(.6,'rgba(0,0,0,.9)');pg.addColorStop(1,'#000');ctx.fillStyle=pg;ctx.fillRect(gp[0],G,gp[1]-gp[0],yb-G);}}
+  
+  // Draw Mud (Level 4)
+  ctx.fillStyle = 'rgba(40, 30, 20, 0.8)';
+  for(var m of mudZones) {
+    if(m.x2 < x0 || m.x > x1) continue;
+    ctx.fillRect(m.x, G, m.x2 - m.x, yb - G);
+  }
+
   ctx.fillStyle='#000';
   for(var i=0;i<segs.length;i++){var a=segs[i][0],b=segs[i][1];if(b<x0||a>x1)continue;ctx.fillRect(a,G,b-a,yb-G);var xs=Math.max(a,Math.floor(x0/7)*7),xe=Math.min(b,x1);ctx.beginPath();for(var x=xs;x<xe;x+=7){var h=2+hash(x)*7;ctx.moveTo(x,G+1);ctx.lineTo(x+3.5,G-h);ctx.lineTo(x+7,G+1);}ctx.fill();}
   for(var w=0;w<walls.length-2;w++){var wl=walls[w];if(wl.x+wl.w<x0||wl.x>x1)continue;ctx.fillRect(wl.x,wl.y,wl.w,wl.h);}
+  
+  // Draw Vines
+  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  for(var v of vines) {
+    if(v.x < x0 || v.x > x1) continue;
+    ctx.beginPath(); ctx.moveTo(v.x + v.w/2, -20); 
+    ctx.quadraticCurveTo(v.x + v.w/2 + Math.sin(tick*0.02 + v.phase)*10, G/2, v.x + v.w/2, v.y + v.h/2); 
+    ctx.stroke();
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(v.x + v.w/2, v.y + v.h/2, 6, 0, 6.3); ctx.fill();
+  }
+
   for(var s=0;s<spikes.length;s++){var sp=spikes[s];if(sp[1]<x0||sp[0]>x1)continue;ctx.beginPath();for(var sx=sp[0];sx<sp[1]-3;sx+=8){ctx.moveTo(sx,G+1);ctx.lineTo(sx+4,G-17-hash(sx)*4);ctx.lineTo(sx+8,G+1);}ctx.fill();}
   
   for(var c of [crate,crate2]){if(c.w>0 && c.x+c.w>x0&&c.x<x1){ctx.fillStyle='#0b0b0b';ctx.fillRect(c.x,c.y,c.w,c.h);}}
@@ -162,6 +211,24 @@ function draw(){
   }
 
   if(boulder&&boulder.active){var bcx=boulder.x,bcy=boulder.y;ctx.save();ctx.translate(bcx,bcy);ctx.rotate(boulder.rot);ctx.fillStyle='#050505';ctx.beginPath();ctx.arc(0,0,boulder.r,0,6.3);ctx.fill();ctx.restore();}
+  
+  // Draw Snake
+  if(snake) {
+    ctx.fillStyle = '#050505';
+    ctx.beginPath();
+    ctx.moveTo(snake.points[0].x, snake.points[0].y);
+    for(var i=1; i<snake.points.length; i++) {
+      ctx.lineTo(snake.points[i].x, snake.points[i].y);
+    }
+    ctx.lineWidth = 20; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#050505';
+    ctx.stroke();
+    // Snake head (eyes)
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(snake.x + 5, snake.y - 5, 3, 0, 6.3); ctx.fill();
+    ctx.beginPath(); ctx.arc(snake.x + 5, snake.y + 5, 3, 0, 6.3); ctx.fill();
+  }
+
   if(!(P.dead>0&&P.dead>12))drawPlayer();
   for(var k=0;k<parts.length;k++){var pt=parts[k];ctx.fillStyle='rgba(165,168,163,'+Math.min(.7,pt.l/pt.m)+')';ctx.beginPath();ctx.arc(pt.x,pt.y,1.6,0,6.3);ctx.fill();}
   
