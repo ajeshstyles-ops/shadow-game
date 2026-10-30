@@ -41,17 +41,47 @@ const LEVELS_DATA = {
       {x: 6200, y: -80, w: 40, h: 80},
       {x: 8000, y: -60, w: 40, h: 60}
     ],
-    crates: [
-      {x: 900}, 
-      {x: 2400}, 
-      {x: 5800}, 
-      {x: 7800}
-    ],
-    // വെള്ളത്തിൽ ഒഴുകുന്ന തടി ഇല്ല (log ഒഴിവാക്കി)
+    crates: [{x: 900}, {x: 2400}, {x: 5800}, {x: 7800}],
     lake: {x: 3000, x2: 4600},
-    // കരയിൽ കിടക്കുന്ന വലിയ തടി. ഇത് തള്ളി വെള്ളത്തിലിടാം.
     pushLog: {x: 2850, w: 100, h: 20}, 
     checkpoints: [100, 2100, 3200, 4700, 6100, 7600],
     exit: 9200
+  },
+
+  4: {
+    name: "Level 4 - The Serpent's Chase",
+    END: 12000,
+    // No gaps or spikes, just continuous ground with mud zones
+    segs: [[-300, 12000]],
+    gaps: [],
+    spikes: [],
+    walls: [
+      {x: 2000, y: -50, w: 30, h: 50},
+      {x: 4500, y: -60, w: 40, h: 60},
+      {x: 7500, y: -70, w: 50, h: 70},
+      {x: 9500, y: -50, w: 30, h: 50}
+    ],
+    crates: [
+      {x: 1500}, 
+      {x: 3500}, 
+      {x: 6000}, 
+      {x: 8500}
+    ],
+    // Mud slows the player down
+    mudZones: [
+      {x: 2500, x2: 3500},
+      {x: 5000, x2: 6000},
+      {x: 8000, x2: 9000}
+    ],
+    // Hanging vines (player must jump over or avoid)
+    vines: [
+      {x: 3800, w: 20, h: 120},
+      {x: 6800, w: 20, h: 100},
+      {x: 10500, w: 20, h: 130}
+    ],
+    // The Snake starts at x= -600 and chases the player
+    snake: {startX: -600, speed: 1.2}, 
+    checkpoints: [100, 3000, 6000, 9000],
+    exit: 11500
   }
 };
