@@ -51,7 +51,7 @@ const LEVELS_DATA = {
     pushLog: {x: 2850, w: 100, h: 20}, 
     checkpoints: [100, 2100, 3200, 4700, 6100, 7600],
     exit: 9200
-  }, // <--- ഇവിടെ ആ `};` മാറ്റി വെറും കോമ (`,`) ആക്കിയിട്ടുണ്ട്
+  },
 
   4: {
     name: "Level 4 - The Fallen Forest",
