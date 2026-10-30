@@ -1,4 +1,4 @@
-// GAME.JS - Engine - Pushable Log in Water
+// GAME.JS - Engine - Pushable Log (Auto-carry Player)
 (function(){
 'use strict';
 var cv=document.getElementById('c'),ctx=cv.getContext('2d');
@@ -11,7 +11,7 @@ function ov(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
 
 var currentLevel=1,LD=null,END=7800,segs=[],gaps=[],spikes=[],walls=[],solids=[],spikeRects=[],checkpoints=[],LAKE_X=99999,LAKE_X2=99999,BOULDER_AT=99999,PIT_X=99999,PIT_X2=99999,EXIT_X2=7350;
 var crate,crate2,boulder,log,parts=[],pushLogObj=null;
-var logInWater = false; // Tracks if the pushable log is in water
+var logInWater = false; 
 
 function buildLevel(n){
   if(!LEVELS_DATA[n]) { n = 1; }
@@ -28,9 +28,7 @@ function buildLevel(n){
 function resetObjects(){
   crate=(LD.crates&&LD.crates[0])?{x:LD.crates[0].x,y:G-36,w:36,h:36,vy:0}:{x:0,y:0,w:0,h:0,vy:0};
   crate2=(LD.crates&&LD.crates[1])?{x:LD.crates[1].x,y:G-36,w:36,h:36,vy:0}:{x:0,y:0,w:0,h:0,vy:0};
-  // Level 2 Log (Moving by itself)
   log= (LD.log && LD.log.x) ? {x:LD.log.x,y:G-12,w:LD.log.w,h:14,vx:LD.log.speed,dir:1} : {x:0,y:0,w:0,h:0,vx:0,dir:1};
-  // Level 3 Pushable Log (Starts on land)
   pushLogObj = LD.pushLog ? {x:LD.pushLog.x, y:G-LD.pushLog.h, w:LD.pushLog.w, h:LD.pushLog.h, vx:0, dir:1} : null;
   logInWater = false;
   
@@ -56,7 +54,7 @@ function respawn(){
 function movePlayerX(dx){var n=Math.abs(dx),sgn=dx>0?1:-1;P.pushing=false;while(n>1e-6){var m=Math.min(1,n);n-=m;m*=sgn;var r=pr(P.x+m,P.y);if(hitStatic(r)){P.vx=0;break;}var hit=false;var objectsToCheck=[crate,crate2,log]; if(pushLogObj) objectsToCheck.push(pushLogObj);
   for(var c of objectsToCheck){if(c.w>0 && ov(r,crateRect(c))){var nc={x:c.x+m,y:c.y,w:c.w,h:c.h};if(P.onGround&&!hitStatic(nc)){c.x+=m;P.x+=m;P.pushing=true;hit=true;break;}else{P.vx=0;hit=true;break;}}}if(!hit)P.x+=m;}}
 function movePlayerY(dy){var n=Math.abs(dy),sgn=dy>0?1:-1;P.onGround=false;while(n>1e-6){var m=Math.min(1,n);n-=m;m*=sgn;var r=pr(P.x,P.y+m);if(hitStatic(r)){if(m>0)P.onGround=true;P.vy=0;break;}var onBox=false;var objectsToCheck=[crate,crate2,log]; if(pushLogObj) objectsToCheck.push(pushLogObj);
-  for(var c of objectsToCheck){if(c.w>0 && ov(r,crateRect(c))){if(m>0){P.onGround=true;if(c===log || (c===pushLogObj && logInWater)) P.x+=c.vx; }P.vy=0;onBox=true;break;}}if(!onBox)P.y+=m;else break;}}
+  for(var c of objectsToCheck){if(c.w>0 && ov(r,crateRect(c))){if(m>0){P.onGround=true;if(c===log) P.x+=c.vx; }P.vy=0;onBox=true;break;}}if(!onBox)P.y+=m;else break;}}
 function updateCrate(c){if(!c || c.w===0) return; c.vy=Math.min(c.vy+0.55,12);var n=Math.abs(c.vy);while(n>1e-6){var m=Math.min(1,n);n-=m;var nc={x:c.x,y:c.y+m,w:c.w,h:c.h};if(hitStatic(nc)){c.vy=0;break;}c.y+=m;}}
 function die(){if(!P.dead&&state==='play'){P.dead=1;}}
 
@@ -80,19 +78,25 @@ function update(){
   if(P.onGround&&Math.abs(P.vx)>0.3)P.anim+=Math.abs(P.vx)*0.09;else if(!P.onGround)P.anim+=0.05;
   updateCrate(crate);updateCrate(crate2);
   
-  // Level 2 Log (Moving)
   if(log.w>0){log.x+=log.vx*log.dir;if(log.x<LAKE_X||log.x+log.w>LAKE_X2)log.dir*=-1;}
 
-  // Level 3 Pushable Log (Floting)
+  // Pushable Log Logic (Auto Carry Player)
   if(pushLogObj) {
     var isInWater = (pushLogObj.x + pushLogObj.w/2 > LAKE_X && pushLogObj.x + pushLogObj.w/2 < LAKE_X2);
     if(isInWater) {
       logInWater = true;
-      pushLogObj.y = G - pushLogObj.h + 4; // Float on water
-      pushLogObj.x += 0.6; // Drift right
-      // If player stands on it, player moves right too
+      pushLogObj.y = G - pushLogObj.h + 4; 
+      
+      var oldX = pushLogObj.x;
+      pushLogObj.x += 0.6; // Drift speed
+      
+      // Check if player is standing on the log
       var pbCheck = {x:P.x-5,y:P.y-32,w:10,h:30};
-      if(ov(pbCheck, crateRect(pushLogObj))) { P.x += 0.6; }
+      var feet = {x:P.x-6, y:P.y-2, w:12, h:4}; // Check just below feet
+      
+      if(ov(feet, crateRect(pushLogObj))) {
+        P.x += (pushLogObj.x - oldX); // Move player with the log
+      }
     } else {
       logInWater = false;
     }
