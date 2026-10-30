@@ -1,4 +1,4 @@
-// GAME.JS - Engine - Level 4 Fallen Trees (No Snake)
+// GAME.JS - Engine - Pushable Log (Auto-carry Player)
 (function(){
 'use strict';
 var cv=document.getElementById('c'),ctx=cv.getContext('2d');
@@ -12,22 +12,12 @@ function ov(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
 var currentLevel=1,LD=null,END=7800,segs=[],gaps=[],spikes=[],walls=[],solids=[],spikeRects=[],checkpoints=[],LAKE_X=99999,LAKE_X2=99999,BOULDER_AT=99999,PIT_X=99999,PIT_X2=99999,EXIT_X2=7350;
 var crate,crate2,boulder,log,parts=[],pushLogObj=null;
 var logInWater = false; 
-var mudZones = []; var windZones = []; var fallenTrees = []; var leaves = []; 
-var treeSolids = [];
 
 function buildLevel(n){
   if(!LEVELS_DATA[n]) { n = 1; }
   currentLevel=n; LD=LEVELS_DATA[n]; END=LD.END;
   segs=LD.segs; gaps=LD.gaps; spikes=LD.spikes||[]; walls=(LD.walls||[]).concat([{x:-340,y:-3000,w:300,h:4000},{x:END,y:-3000,w:300,h:4000}]);
-  
-  mudZones = LD.mudZones || [];
-  windZones = LD.windZones || [];
-  fallenTrees = (LD.fallenTrees||[]).map(t => ({x: t.x, h: t.h}));
-  leaves = [];
-  
-  treeSolids = fallenTrees.map(t => ({x: t.x, y: G - t.h, w: 30, h: t.h}));
-  
-  solids=segs.map(s=>({x:s[0],y:G,w:s[1]-s[0],h:400})).concat(walls).concat(treeSolids);
+  solids=segs.map(s=>({x:s[0],y:G,w:s[1]-s[0],h:400})).concat(walls);
   spikeRects=spikes.map(s=>({x:s[0]+2,y:G-12,w:s[1]-s[0]-4,h:12}));
   checkpoints=(LD.checkpoints||[]).map(x=>({x:x}));
   LAKE_X=LD.lake?LD.lake.x:99999; LAKE_X2=LD.lake?LD.lake.x2:99999;
@@ -48,6 +38,7 @@ function resetObjects(){
 
 var P={x:80,y:G,vx:0,vy:0,w:14,h:34,face:1,onGround:true,coyote:0,buf:0,anim:0,pushing:false,dead:0};
 var keys={l:false,r:false,j:false},jPrev=false,state='title',tick=0,cur={x:80},camX=0;
+var rainDrops = [];
 
 function pr(x,y){return {x:x-7,y:y-34,w:14,h:34};}
 function crateRect(c){return {x:c.x,y:c.y,w:c.w,h:c.h};}
@@ -63,36 +54,22 @@ function respawn(){
 function movePlayerX(dx){var n=Math.abs(dx),sgn=dx>0?1:-1;P.pushing=false;while(n>1e-6){var m=Math.min(1,n);n-=m;m*=sgn;var r=pr(P.x+m,P.y);if(hitStatic(r)){P.vx=0;break;}var hit=false;var objectsToCheck=[crate,crate2,log]; if(pushLogObj) objectsToCheck.push(pushLogObj);
   for(var c of objectsToCheck){if(c.w>0 && ov(r,crateRect(c))){var nc={x:c.x+m,y:c.y,w:c.w,h:c.h};if(P.onGround&&!hitStatic(nc)){c.x+=m;P.x+=m;P.pushing=true;hit=true;break;}else{P.vx=0;hit=true;break;}}}if(!hit)P.x+=m;}}
 function movePlayerY(dy){var n=Math.abs(dy),sgn=dy>0?1:-1;P.onGround=false;while(n>1e-6){var m=Math.min(1,n);n-=m;m*=sgn;var r=pr(P.x,P.y+m);if(hitStatic(r)){if(m>0)P.onGround=true;P.vy=0;break;}var onBox=false;var objectsToCheck=[crate,crate2,log]; if(pushLogObj) objectsToCheck.push(pushLogObj);
-  for(var c of objectsToCheck){if(c.w>0 && ov(r,crateRect(c))){if(m>0){P.onGround=true;if(c===log || (c===pushLogObj && logInWater)) P.x+=c.vx; }P.vy=0;onBox=true;break;}}if(!onBox)P.y+=m;else break;}}
+  for(var c of objectsToCheck){if(c.w>0 && ov(r,crateRect(c))){if(m>0){P.onGround=true;if(c===log) P.x+=c.vx; }P.vy=0;onBox=true;break;}}if(!onBox)P.y+=m;else break;}}
 function updateCrate(c){if(!c || c.w===0) return; c.vy=Math.min(c.vy+0.55,12);var n=Math.abs(c.vy);while(n>1e-6){var m=Math.min(1,n);n-=m;var nc={x:c.x,y:c.y+m,w:c.w,h:c.h};if(hitStatic(nc)){c.vy=0;break;}c.y+=m;}}
 function die(){if(!P.dead&&state==='play'){P.dead=1;}}
 
 function update(){
   tick++;var tx;if(state==='title'){tx=P.x-viewW*0.36;camX+=(tx-camX)*0.12;return;}if(state==='end')return;
   if(P.dead){P.dead++;if(P.dead===30)respawn();if(P.dead>=60)P.dead=0;return;}
+  
+  if(currentLevel===3){
+    if(rainDrops.length < 100 && Math.random() < 0.5){ rainDrops.push({x: camX + Math.random()*viewW, y: -10, speed: 10 + Math.random()*10}); }
+    for(var i=rainDrops.length-1; i>=0; i--){ rainDrops[i].y += rainDrops[i].speed; if(rainDrops[i].y > G+50) rainDrops.splice(i,1); }
+  } else { rainDrops = []; }
 
   if(keys.j&&!jPrev)P.buf=7;jPrev=keys.j;var dir=(keys.r?1:0)-(keys.l?1:0);if(dir)P.face=dir;
-  
-  var isInMud = false;
-  for(var m of mudZones) { if (P.x > m.x && P.x < m.x2) isInMud = true; }
-  
-  var windForce = 0;
-  for(var w of windZones) {
-    if (P.x > w.x && P.x < w.x2) {
-      windForce = w.force;
-      if (tick % 5 === 0) { 
-        leaves.push({x: camX + viewW + 10, y: Math.random()*G, vx: -windForce*2 - Math.random()*3, vy: Math.random()*2-1, size: 2+Math.random()*3, rot: Math.random()*6.3});
-      }
-    }
-  }
-  for(var i=leaves.length-1; i>=0; i--) {
-    leaves[i].x += leaves[i].vx; leaves[i].y += leaves[i].vy; leaves[i].rot += 0.1;
-    if(leaves[i].x < camX - 100 || leaves[i].y > G) leaves.splice(i,1);
-  }
-
-  var sp=3.0*(P.pushing?0.55:1) * (isInMud ? 0.5 : 1); 
-  P.vx+=(dir*sp-P.vx)*0.3; if(Math.abs(P.vx)<0.05)P.vx=0;
-  movePlayerX(P.vx - windForce); 
+  var sp=3.0*(P.pushing?0.55:1);P.vx+=(dir*sp-P.vx)*0.3;if(Math.abs(P.vx)<0.05)P.vx=0;
+  movePlayerX(P.vx);
   
   if(P.onGround)P.coyote=6;else if(P.coyote>0)P.coyote--;if(P.buf>0)P.buf--;
   if(P.buf>0&&P.coyote>0){P.vy=-8;P.buf=0;P.coyote=0;P.onGround=false;}if(!keys.j&&P.vy<-4.5)P.vy=-4.5;
@@ -102,16 +79,27 @@ function update(){
   updateCrate(crate);updateCrate(crate2);
   
   if(log.w>0){log.x+=log.vx*log.dir;if(log.x<LAKE_X||log.x+log.w>LAKE_X2)log.dir*=-1;}
+
+  // Pushable Log Logic (Auto Carry Player)
   if(pushLogObj) {
     var isInWater = (pushLogObj.x + pushLogObj.w/2 > LAKE_X && pushLogObj.x + pushLogObj.w/2 < LAKE_X2);
     if(isInWater) {
       logInWater = true;
       pushLogObj.y = G - pushLogObj.h + 4; 
+      
       var oldX = pushLogObj.x;
-      pushLogObj.x += 0.6; 
-      var feet = {x:P.x-6, y:P.y-2, w:12, h:4}; 
-      if(ov(feet, crateRect(pushLogObj))) { P.x += (pushLogObj.x - oldX); }
-    } else { logInWater = false; }
+      pushLogObj.x += 0.6; // Drift speed
+      
+      // Check if player is standing on the log
+      var pbCheck = {x:P.x-5,y:P.y-32,w:10,h:30};
+      var feet = {x:P.x-6, y:P.y-2, w:12, h:4}; // Check just below feet
+      
+      if(ov(feet, crateRect(pushLogObj))) {
+        P.x += (pushLogObj.x - oldX); // Move player with the log
+      }
+    } else {
+      logInWater = false;
+    }
   }
 
   for(var i=0;i<checkpoints.length;i++){if(P.x>=checkpoints[i].x&&checkpoints[i].x>cur.x)cur=checkpoints[i];}
@@ -135,7 +123,6 @@ function update(){
   if(P.x>EXIT_X2-20&&state==='play'){
     if(currentLevel===1){ currentLevel=2; buildLevel(2); resetObjects(); cur=checkpoints[0]; P.x=cur.x; P.y=G; camX=P.x-viewW*0.36; }
     else if (currentLevel===2) { currentLevel=3; buildLevel(3); resetObjects(); cur=checkpoints[0]; P.x=cur.x; P.y=G; camX=P.x-viewW*0.36; }
-    else if (currentLevel===3) { currentLevel=4; buildLevel(4); resetObjects(); cur=checkpoints[0]; P.x=cur.x; P.y=G; camX=P.x-viewW*0.36; }
     else { state='end'; document.getElementById('end').classList.remove('hid'); document.body.classList.remove('play'); }
   }
 
@@ -156,20 +143,9 @@ function draw(){
   ctx.setTransform(dpr*S,0,0,dpr*S,-camX*S*dpr,(gy-G*S)*dpr);
   var x0=camX-20,x1=camX+viewW+20,yb=G+(ih-gy)/S+40;
   for(var g=0;g<gaps.length;g++){var gp=gaps[g];if(gp[1]<x0||gp[0]>x1)continue;if(gp[0]===LAKE_X){ctx.fillStyle='rgba(20,30,40,0.9)';ctx.fillRect(gp[0],G,gp[1]-gp[0],yb-G);ctx.fillStyle='rgba(100,150,200,0.25)';ctx.fillRect(gp[0],G+2,gp[1]-gp[0],30);}else{var pg=ctx.createLinearGradient(0,G,0,G+260);pg.addColorStop(0,'rgba(0,0,0,0)');pg.addColorStop(.6,'rgba(0,0,0,.9)');pg.addColorStop(1,'#000');ctx.fillStyle=pg;ctx.fillRect(gp[0],G,gp[1]-gp[0],yb-G);}}
-  
-  ctx.fillStyle = 'rgba(40, 30, 20, 0.8)';
-  for(var m of mudZones) { if(m.x2 < x0 || m.x > x1) continue; ctx.fillRect(m.x, G, m.x2 - m.x, yb - G); }
-
   ctx.fillStyle='#000';
   for(var i=0;i<segs.length;i++){var a=segs[i][0],b=segs[i][1];if(b<x0||a>x1)continue;ctx.fillRect(a,G,b-a,yb-G);var xs=Math.max(a,Math.floor(x0/7)*7),xe=Math.min(b,x1);ctx.beginPath();for(var x=xs;x<xe;x+=7){var h=2+hash(x)*7;ctx.moveTo(x,G+1);ctx.lineTo(x+3.5,G-h);ctx.lineTo(x+7,G+1);}ctx.fill();}
   for(var w=0;w<walls.length-2;w++){var wl=walls[w];if(wl.x+wl.w<x0||wl.x>x1)continue;ctx.fillRect(wl.x,wl.y,wl.w,wl.h);}
-  
-  for(var t of fallenTrees) {
-    if(t.x < x0 || t.x > x1) continue;
-    ctx.fillStyle = '#050505';
-    ctx.fillRect(t.x, G - t.h, 30, t.h); 
-  }
-
   for(var s=0;s<spikes.length;s++){var sp=spikes[s];if(sp[1]<x0||sp[0]>x1)continue;ctx.beginPath();for(var sx=sp[0];sx<sp[1]-3;sx+=8){ctx.moveTo(sx,G+1);ctx.lineTo(sx+4,G-17-hash(sx)*4);ctx.lineTo(sx+8,G+1);}ctx.fill();}
   
   for(var c of [crate,crate2]){if(c.w>0 && c.x+c.w>x0&&c.x<x1){ctx.fillStyle='#0b0b0b';ctx.fillRect(c.x,c.y,c.w,c.h);}}
@@ -186,14 +162,19 @@ function draw(){
   }
 
   if(boulder&&boulder.active){var bcx=boulder.x,bcy=boulder.y;ctx.save();ctx.translate(bcx,bcy);ctx.rotate(boulder.rot);ctx.fillStyle='#050505';ctx.beginPath();ctx.arc(0,0,boulder.r,0,6.3);ctx.fill();ctx.restore();}
-
-  ctx.fillStyle = '#1a1a1a';
-  for(var l of leaves) {
-    ctx.save(); ctx.translate(l.x, l.y); ctx.rotate(l.rot); ctx.fillRect(-l.size, -l.size/2, l.size, l.size); ctx.restore();
-  }
-
   if(!(P.dead>0&&P.dead>12))drawPlayer();
   for(var k=0;k<parts.length;k++){var pt=parts[k];ctx.fillStyle='rgba(165,168,163,'+Math.min(.7,pt.l/pt.m)+')';ctx.beginPath();ctx.arc(pt.x,pt.y,1.6,0,6.3);ctx.fill();}
+  
+  if(currentLevel===3){
+    ctx.strokeStyle = 'rgba(200, 210, 220, 0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for(var r of rainDrops){
+      ctx.moveTo(r.x, r.y);
+      ctx.lineTo(r.x, r.y + 15);
+    }
+    ctx.stroke();
+  }
 
   ctx.setTransform(dpr,0,0,dpr,0,0);var vg=ctx.createRadialGradient(iw/2,ih*.55,Math.min(iw,ih)*.25,iw/2,ih*.55,Math.max(iw,ih)*.78);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.82)');ctx.fillStyle=vg;ctx.fillRect(0,0,iw,ih);
   ctx.setTransform(1,0,0,1,0,0);ctx.save();ctx.translate(-Math.floor(Math.random()*128),-Math.floor(Math.random()*128));ctx.globalAlpha=.7;ctx.fillStyle=noisePat;ctx.fillRect(0,0,cv.width+128,cv.height+128);ctx.restore();
