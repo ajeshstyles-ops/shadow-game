@@ -50,30 +50,27 @@ const LEVELS_DATA = {
 4: {
   name: "Level 4 - The Fallen Forest",
   END: 12000,
-  segs: [[-300, 12000]],
-  gaps: [],
+  segs: [
+    [-300, 1200],
+    [1230, 2800],
+    [2830, 5200],
+    [5230, 6800],
+    [6830, 9000],
+    [9030, 12000]
+  ],
+  gaps: [
+    [1200, 1230],
+    [2800, 2830],
+    [5200, 5230],
+    [6800, 6830],
+    [9000, 9030]
+  ],
   spikes: [],
-  walls: [
-    {x: 2000, y: -50, w: 30, h: 50},
-    {x: 4500, y: -60, w: 40, h: 60},
-    {x: 7500, y: -70, w: 50, h: 70}
-  ],
-  crates: [{x: 1500}, {x: 3500}, {x: 6000}],
-  mudZones: [
-    {x: 2500, x2: 3500},
-    {x: 5000, x2: 6000}
-  ],
-  // Strong Wind
-  windZones: [
-    {x: 4000, x2: 5000, force: 1.5}
-  ],
-  // Fallen Trees (These act as walls you must jump over, but they don't kill you)
-  fallenTrees: [
-    {x: 1200, h: 40},
-    {x: 2800, h: 50},
-    {x: 5200, h: 40},
-    {x: 6800, h: 60}
-  ],
+  walls: [...],
+  crates: [...],
+  mudZones: [...],
+  windZones: [...],
+  fallenTrees: [...],
   checkpoints: [100, 3000, 6000, 9000],
   exit: 11500
 }
