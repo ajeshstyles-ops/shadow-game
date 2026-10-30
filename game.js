@@ -13,7 +13,7 @@ var currentLevel=1,LD=null,END=7800,segs=[],gaps=[],spikes=[],walls=[],solids=[]
 var crate,crate2,boulder,log,parts=[],pushLogObj=null;
 var logInWater = false; 
 var mudZones = []; var windZones = []; var fallenTrees = []; var leaves = []; 
-var treeSolids = []; // Fallen trees act as solid blocks
+var treeSolids = [];
 
 function buildLevel(n){
   if(!LEVELS_DATA[n]) { n = 1; }
@@ -25,7 +25,6 @@ function buildLevel(n){
   fallenTrees = (LD.fallenTrees||[]).map(t => ({x: t.x, h: t.h}));
   leaves = [];
   
-  // Create solid blocks for fallen trees so player can jump on them
   treeSolids = fallenTrees.map(t => ({x: t.x, y: G - t.h, w: 30, h: t.h}));
   
   solids=segs.map(s=>({x:s[0],y:G,w:s[1]-s[0],h:400})).concat(walls).concat(treeSolids);
@@ -165,7 +164,6 @@ function draw(){
   for(var i=0;i<segs.length;i++){var a=segs[i][0],b=segs[i][1];if(b<x0||a>x1)continue;ctx.fillRect(a,G,b-a,yb-G);var xs=Math.max(a,Math.floor(x0/7)*7),xe=Math.min(b,x1);ctx.beginPath();for(var x=xs;x<xe;x+=7){var h=2+hash(x)*7;ctx.moveTo(x,G+1);ctx.lineTo(x+3.5,G-h);ctx.lineTo(x+7,G+1);}ctx.fill();}
   for(var w=0;w<walls.length-2;w++){var wl=walls[w];if(wl.x+wl.w<x0||wl.x>x1)continue;ctx.fillRect(wl.x,wl.y,wl.w,wl.h);}
   
-  // Draw Fallen Trees (Solid blocks)
   for(var t of fallenTrees) {
     if(t.x < x0 || t.x > x1) continue;
     ctx.fillStyle = '#050505';
